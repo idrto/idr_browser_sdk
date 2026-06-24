@@ -8,6 +8,14 @@ const client = IdrClient.forService("ollama");
 
 Service name maps to target port (e.g. `ollama` → 11434). End-users never choose the service.
 
+## BYOM (Bring Your Own Machine)
+
+Users run the workload on their hardware — Mac Mini, Linux GPU box, etc. They install Ollama (or your target service) plus an idr.to target agent. Your app only supplies connectivity via the SDK. You do not pay for or host inference GPUs.
+
+## Bundle size
+
+~**11 KB gzip** (ESM entry, minified). Auth panel chunk ~1.3 KB gzip when loaded. WebRTC is built into the browser.
+
 ## What end-users provide
 
 - **Target host** — e.g. `edge-gpu-1.user@example.com.idr` (your UI)

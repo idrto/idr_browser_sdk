@@ -4,6 +4,22 @@ Browser SDK for idr.to — WebRTC access to on-prem target agents (Ollama, HTTP 
 
 ISVs hardcode **service** at dev time; end-users enter **target host** only. Auth, billing, and platform URLs are built into the SDK.
 
+## Bring Your Own Machine (BYOM)
+
+Users run workloads on **their own hardware** (Mac Mini, GPU server, etc.) — you do not host inference. They install a target agent + local service (e.g. Ollama on port 11434); your app connects with `IdrClient.forService("ollama")` and the host they provide. Ideal for on-device AI without shipping GPU infrastructure.
+
+## Bundle size
+
+Production build (`npm run build`, minified + gzip). WebRTC is browser-native — not counted.
+
+| Artifact | Gzip |
+|----------|------|
+| ESM entry (`dist/index.js`) | **~11 KB** |
+| CJS entry (`dist/index.cjs`) | ~13 KB |
+| Auth panel chunk (lazy) | ~1.3 KB |
+
+Typical impact when bundling into an SPA: **~11–12 KB gzip** for core SDK + sign-in UI.
+
 ## Install
 
 ```bash
