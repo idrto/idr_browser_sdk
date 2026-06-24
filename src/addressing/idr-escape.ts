@@ -5,6 +5,7 @@ const ESCAPE_MAP: Record<string, string> = {
   "/": "-2F",
   "%": "-25",
   ".": "-2E",
+  "~": "-7E",
 };
 
 const ESCAPE_RE = /-([0-9A-Fa-f]{2})/g;

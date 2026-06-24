@@ -47,7 +47,7 @@ See [docs/ISV_GUIDE.md](docs/ISV_GUIDE.md) and [docs/ACCESS_KEYS.md](docs/ACCESS
 - Signaling: `wss://idr.to/v1/signal` with Ed25519 device auth
 - Transport: WebRTC data channel `idr-tunnel` + **idr-tunnel-v1** binary mux
 
-Target hosts: use `.idr` synthetic names (`buildIdrHostname`) or `idrto:` URIs. Do not parse `*.idr.to` labels locally — they may be opaque hashes.
+Target hosts: use `.idr` synthetic names (`buildIdrHostname`) or `idrto:` URIs (`idrto:<host>~<entity>/<service>`). Do not parse `*.idr.to` labels locally — they may be opaque hashes. Port segments ending in `UDP` use an unordered WebRTC data channel.
 
 ## Examples
 

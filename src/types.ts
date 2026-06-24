@@ -12,6 +12,7 @@ export type ParsedTarget = {
   entityId: string;
   host: string;
   service: string;
+  transport: "tcp" | "udp";
   path: string;
   query: string;
   idrtoUri: string;
@@ -21,6 +22,7 @@ export type ResolveResponse = {
   entity_id: string;
   host: string;
   service: string;
+  transport?: "tcp" | "udp";
   signal_session: string;
   signal_url?: string;
   stun_urls?: string[];

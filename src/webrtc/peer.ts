@@ -84,7 +84,13 @@ export async function createOutboundPeer(
     dcOpenResolve = resolve;
   });
 
-  const dc = pc.createDataChannel(DATA_CHANNEL_LABEL, { ordered: true });
+  const transport = resolved.transport ?? "tcp";
+  const dcInit: RTCDataChannelInit =
+    transport === "udp"
+      ? { ordered: false, maxRetransmits: 0 }
+      : { ordered: true };
+
+  const dc = pc.createDataChannel(DATA_CHANNEL_LABEL, dcInit);
   dc.binaryType = "arraybuffer";
   dc.onopen = () => dcOpenResolve?.();
   dc.onmessage = (ev) => {

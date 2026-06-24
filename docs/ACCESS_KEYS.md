@@ -39,7 +39,7 @@ Keys are SHA-256 hashed at rest. Billing meters to the **key owner**.
 ## Hostname formats
 
 - **`.idr` synthetic** — `laptop.user-40example-2Ecom.idr` (entity id recovered via idr-escape)
-- **`idrto:` URI** — canonical machine form
+- **`idrto:` URI** — `idrto:<host>~<entity-id>/<service-or-port>` (v1 grammar)
 - **`*.idr.to`** — opaque routing labels (may be SHA-256); **not parsed client-side**
 
 Use `buildIdrHostname(entityId, host)` to encode synthetic hostnames.

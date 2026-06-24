@@ -215,7 +215,13 @@ export class IdrClient {
 
       await this.signaling.connect();
 
-      this.peer = await createOutboundPeer(resolved, this.relay);
+      this.peer = await createOutboundPeer(
+        {
+          ...resolved,
+          transport: resolved.transport ?? parsed.transport,
+        },
+        this.relay,
+      );
       this.mux = new TunnelMultiplexer((frame) => this.peer!.sendBinary(frame));
       this.peer.onBinary((data) => this.mux!.ingest(data));
 

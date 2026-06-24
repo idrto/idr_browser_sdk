@@ -1,4 +1,5 @@
 import { IdrError } from "../errors/IdrError";
+import { classifyServiceSegment } from "../addressing/parseTarget";
 
 const NAMED: Record<string, number> = {
   ssh: 22,
@@ -11,9 +12,15 @@ const NAMED: Record<string, number> = {
 };
 
 export function resolveServicePort(service: string): number {
+  const classified = classifyServiceSegment(service);
+  if (classified.kind === "port" && classified.port !== undefined) {
+    return classified.port;
+  }
   const lower = service.toLowerCase();
   if (lower in NAMED) return NAMED[lower]!;
-  const n = Number(service);
-  if (Number.isInteger(n) && n >= 1 && n <= 65535) return n;
   throw new IdrError("invalid_service", `Unknown service: ${service}`);
+}
+
+export function resolveServiceTransport(service: string): "tcp" | "udp" {
+  return classifyServiceSegment(service).transport;
 }

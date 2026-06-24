@@ -1,43 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
   buildIdrHostname,
+  classifyServiceSegment,
   formatIdrtoUri,
+  parseIdrHostname,
   parseTargetInput,
 } from "../src/addressing/parseTarget";
-import { idrEscapeEntity, idrUnescapeEntity } from "../src/addressing/idr-escape";
 
 describe("addressing", () => {
-  it("escapes entity id for idrto URI", () => {
-    expect(idrEscapeEntity("user@example.com")).toBe("user-40example.com");
-    expect(idrUnescapeEntity("user-40example-2Ecom")).toBe("user@example.com");
-  });
-
-  it("formats idrto v2 URI", () => {
+  it("formats idrto host~entity URI", () => {
     const uri = formatIdrtoUri("user@example.com", "edge-gpu-1", "ollama");
-    expect(uri).toBe("idrto:user-40example.com/--/edge-gpu-1/ollama");
+    expect(uri).toBe("idrto:edge-gpu-1~user-40example.com/ollama");
   });
 
-  it("builds synthetic .idr hostname (encode-only)", () => {
-    expect(buildIdrHostname("user@example.com", "laptop")).toBe(
-      "laptop.user-40example-2Ecom.idr",
-    );
+  it("parses idrto URI", () => {
+    const uri = "idrto:laptop~user-40example.com/11434";
+    const p = parseTargetInput(uri, "ollama");
+    expect(p.entityId).toBe("user@example.com");
+    expect(p.host).toBe("laptop");
+    expect(p.service).toBe("11434");
+    expect(p.transport).toBe("tcp");
   });
 
-  it("parses .idr hostname", () => {
-    const parsed = parseTargetInput("edge-gpu-1.user-40example-2Ecom.idr", "ollama");
+  it("parses UDP port suffix", () => {
+    const classified = classifyServiceSegment("53UDP");
+    expect(classified.port).toBe(53);
+    expect(classified.transport).toBe("udp");
+  });
+
+  it("builds and parses .idr hostname", () => {
+    const host = buildIdrHostname("user@example.com", "edge-gpu-1");
+    expect(host).toBe("edge-gpu-1.user-40example-2Ecom.idr");
+    const parsed = parseIdrHostname(host);
     expect(parsed.entityId).toBe("user@example.com");
     expect(parsed.host).toBe("edge-gpu-1");
-    expect(parsed.service).toBe("ollama");
   });
 
-  it("rejects opaque *.idr.to labels", () => {
-    expect(() => parseTargetInput("a1b2c3d4e5f6.example.idr.to", "ollama")).toThrow(/opaque/i);
-  });
-
-  it("parses idrto URI directly", () => {
-    const uri = "idrto:user-40example.com/--/laptop/11434";
-    const parsed = parseTargetInput(uri, "ollama");
-    expect(parsed.service).toBe("11434");
-    expect(parsed.host).toBe("laptop");
+  it("rejects opaque idr.to labels", () => {
+    expect(() => parseTargetInput("a1b2c3d4e5f6.example.idr.to", "ollama")).toThrow(
+      /opaque/i,
+    );
   });
 });
