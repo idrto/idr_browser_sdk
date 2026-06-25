@@ -7,16 +7,9 @@
 3. Enter your target host (e.g. `laptop.you@company.idr`)
 4. Connect
 
-You need an active idr.to signaling subscription.
+You need an active idr.to product bundle (Personal or Enterprise) on your entity.
 
-## Use an access key
-
-If the machine owner gave you an `idr_ak_…` key:
-
-1. Choose **Access key** in the SDK panel
-2. Paste the key (never share it with the ISV)
-3. Enter the host the owner specified
-4. Connect
+The SDK registers this browser as a source device and uses Signed Host-Identity to connect securely.
 
 ## Target host format
 

@@ -1,6 +1,6 @@
 import { apiBase } from "../constants";
 import { IdrError } from "../errors/IdrError";
-import type { BillingStatus, ResolveResponse } from "../types";
+import type { BillingStatus, HostIdentityDocument, ResolveResponse } from "../types";
 
 const API_HEADERS: Record<string, string> = {
   Accept: "application/json",
@@ -36,92 +36,71 @@ async function apiFetch<T>(
   return json as T;
 }
 
-export async function resolveTarget(
-  bearer: string,
+export async function fetchResolveChallenge(): Promise<{ challenge_id: string; nonce: string }> {
+  return apiFetch("/v1/resolve/challenge");
+}
+
+export async function resolveWithHostIdentity(
   uri: string,
-  sourceHost: string,
+  hostIdentity: HostIdentityDocument,
+  challenge: { challenge_id: string; nonce: string; pop_signature: string },
 ): Promise<ResolveResponse> {
   return apiFetch<ResolveResponse>("/resolve", {
     method: "POST",
-    bearer,
-    body: JSON.stringify({ uri, source_host: sourceHost }),
+    body: JSON.stringify({
+      uri,
+      host_identity: hostIdentity,
+      challenge_id: challenge.challenge_id,
+      nonce: challenge.nonce,
+      pop_signature: challenge.pop_signature,
+    }),
   });
 }
 
-export async function fetchBillingStatus(bearer: string): Promise<BillingStatus & { signaling?: unknown }> {
-  const status = await apiFetch<{
-    signaling_active: boolean;
-    turn?: Array<{ host: string | null; status: string }>;
-  }>("/v1/billing/status", { bearer });
+export async function registerSourceIdentity(
+  bearer: string,
+  entityId: string,
+  host: string,
+  publicKeyBase64Url: string,
+): Promise<{ host_identity: HostIdentityDocument }> {
+  return apiFetch(`/entities/${encodeURIComponent(entityId)}/source-identities`, {
+    method: "POST",
+    bearer,
+    body: JSON.stringify({ host, public_key: publicKeyBase64Url }),
+  });
+}
+
+export async function fetchBillingStatus(bearer: string): Promise<BillingStatus> {
+  const status = await apiFetch<{ bundle_active: boolean; acl_tier?: "personal" | "enterprise" }>(
+    "/v1/billing/status",
+    { bearer },
+  );
   return {
-    signaling_active: status.signaling_active,
-    turn: status.turn,
+    bundle_active: status.bundle_active,
+    acl_tier: status.acl_tier,
   };
 }
 
-export async function browserLogin(entityId: string, password: string): Promise<{
+export async function accountLogin(entityId: string, password: string): Promise<{
   access_token: string;
   entity_id: string;
   expires_in: number;
   scope: string;
 }> {
-  return apiFetch("/v1/auth/browser/login", {
+  return apiFetch("/auth/cli/login", {
     method: "POST",
     body: JSON.stringify({ entity_id: entityId, password }),
   });
 }
 
-/** @deprecated Use browserLogin — portal tokens are read-only */
-export const portalLogin = browserLogin;
-
-export async function exchangeAccessKey(accessKey: string): Promise<{
-  access_token: string;
-  entity_id: string;
-  host?: string;
-  target_entity_id?: string;
-  target_host?: string;
-  expires_in: number;
-}> {
-  return apiFetch("/v1/auth/access-key/exchange", {
-    method: "POST",
-    body: JSON.stringify({ access_key: accessKey }),
-  });
-}
-
 export async function createCheckout(
   bearer: string,
-  product: "signaling" | "turn",
-  host?: string,
+  bundle: "personal" | "enterprise",
+  quantity = 1,
 ): Promise<{ url?: string; checkout_url?: string }> {
   return apiFetch("/v1/billing/checkout", {
     method: "POST",
     bearer,
-    body: JSON.stringify({ product, host }),
+    body: JSON.stringify({ bundle, quantity }),
   });
-}
-
-export async function createAccessKey(
-  bearer: string,
-  targetEntityId: string,
-  targetHost: string,
-  opts?: { label?: string; expiresInSeconds?: number },
-): Promise<{ id: string; access_key: string; key_prefix: string }> {
-  return apiFetch("/v1/access-keys", {
-    method: "POST",
-    bearer,
-    body: JSON.stringify({
-      target_entity_id: targetEntityId,
-      target_host: targetHost,
-      label: opts?.label,
-      expires_in_seconds: opts?.expiresInSeconds,
-    }),
-  });
-}
-
-export async function listAccessKeys(bearer: string): Promise<{ items: unknown[] }> {
-  return apiFetch("/v1/access-keys", { bearer });
-}
-
-export async function revokeAccessKey(bearer: string, id: string): Promise<void> {
-  await apiFetch(`/v1/access-keys/${id}`, { method: "DELETE", bearer });
 }

@@ -6,7 +6,22 @@ export type IdrConnectionState =
   | "closed"
   | "failed";
 
-export type IdrAuthMode = "none" | "account" | "access_key";
+export type IdrAuthMode = "none" | "account";
+
+export type HostIdentityDocument = {
+  schemaVersion: number;
+  entityId: string;
+  hostId: string;
+  ou: string;
+  publicKey: {
+    algorithm: "Ed25519";
+    value: string;
+  };
+  issuedAt: string;
+  expiresAt: string;
+  issuer: string;
+  signature: string;
+};
 
 export type ParsedTarget = {
   entityId: string;
@@ -34,8 +49,8 @@ export type ResolveResponse = {
 };
 
 export type BillingStatus = {
-  signaling_active: boolean;
-  turn?: Array<{ host: string | null; status: string }>;
+  bundle_active: boolean;
+  acl_tier?: "personal" | "enterprise";
 };
 
 export type IdrFetchInit = {
@@ -50,6 +65,4 @@ export type ConnectOptions = {
   host: string;
   signal?: AbortSignal;
   timeoutMs?: number;
-  /** @internal Forbidden — access keys only via SDK auth UI */
-  accessKey?: never;
 };

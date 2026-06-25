@@ -19,7 +19,7 @@ Users run the workload on their hardware — Mac Mini, Linux GPU box, etc. They 
 ## What end-users provide
 
 - **Target host** — e.g. `edge-gpu-1.user@example.com.idr` (your UI)
-- **Credentials** — via SDK auth panel only (account or access key)
+- **Credentials** — via SDK auth panel only (entity ID + password)
 
 ## Required integration pattern
 
@@ -33,9 +33,9 @@ const res = await client.fetch("/api/tags");
 
 | Do not | Why |
 |--------|-----|
-| Add your own access-key input | Keys must not touch ISV JS state or DOM outside SDK shadow root |
-| POST keys/tokens to your API | ISV servers must never see secrets |
-| Pass `accessKey` to `connect()` | SDK throws `forbidden` |
+| Add your own password or token inputs | Credentials must not touch ISV JS state outside SDK UI |
+| POST tokens to your API | ISV servers must never see idr.to secrets |
+| Pass tokens to `connect()` | Auth is handled internally via Signed Host-Identity |
 | Override `idr.to` URLs | Platform endpoints are hardcoded |
 
 ## CSP

@@ -49,19 +49,18 @@ npm install @idrto/idr_browser_sdk
 
 ## Security
 
-- Never collect access keys in ISV code or send them to your backend.
-- Use `mountAuthPanel()` or `<idr-auth-panel>` for credentials.
-- Do **not** pass `accessKey` to `connect()` — the SDK rejects it.
+- Use `mountAuthPanel()` or `<idr-auth-panel>` for credentials — never collect passwords in ISV code.
+- The SDK registers a **Signed Host-Identity** for this browser and uses proof-of-possession on resolve.
 
-See [docs/ISV_GUIDE.md](docs/ISV_GUIDE.md) and [docs/ACCESS_KEYS.md](docs/ACCESS_KEYS.md).
+See [docs/ISV_GUIDE.md](docs/ISV_GUIDE.md) and [docs/HOST_IDENTITY.md](docs/HOST_IDENTITY.md).
 
 ## Platform requirements
 
-- Account sign-in: `POST /v1/auth/browser/login` → `browser:write` scope
-- Access keys: `POST /v1/auth/access-key/exchange`
-- Resolve: `POST /resolve` with `source_host: "browser"` (or key-scoped host)
+- Sign-in: `POST /auth/cli/login` → registers source identity at host `browser`
+- Resolve: `POST /resolve` with Signed Host-Identity + PoP (`GET /v1/resolve/challenge`)
 - Signaling: `wss://idr.to/v1/signal` with Ed25519 device auth
 - Transport: WebRTC data channel `idr-tunnel` + **idr-tunnel-v1** binary mux
+- Billing: active Personal or Enterprise bundle on the payer entity
 
 Target hosts: use `.idr` synthetic names (`buildIdrHostname`) or `idrto:` URIs (`idrto:<host>~<entity>/<service>`). Do not parse `*.idr.to` labels locally — they may be opaque hashes. Port segments ending in `UDP` use an unordered WebRTC data channel.
 

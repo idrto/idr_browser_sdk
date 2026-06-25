@@ -4,18 +4,19 @@ import { loadOrCreateDeviceIdentity } from "./crypto/deviceIdentity";
 import { IdrError } from "./errors/IdrError";
 import { fetchOverTunnel, IdrResponse } from "./http/fetchOverTunnel";
 import {
+  accountLogin,
   createCheckout,
-  exchangeAccessKey,
   fetchBillingStatus,
-  browserLogin,
-  resolveTarget,
+  fetchResolveChallenge,
+  registerSourceIdentity,
+  resolveWithHostIdentity,
 } from "./platform/api";
 import {
   accessTokenFromCredential,
   authModeFromCredential,
   clearCredential,
+  credentialIsPersisted,
   entityIdFromCredential,
-  keyHint,
   loadCredential,
   saveCredential,
   sourceHostFromCredential,
@@ -26,6 +27,7 @@ import { SignalingClient } from "./signaling/client";
 import { TunnelMultiplexer, type TunnelStream } from "./tunnel/multiplexer";
 import type {
   ConnectOptions,
+  HostIdentityDocument,
   IdrAuthMode,
   IdrConnectionState,
   IdrFetchInit,
@@ -45,12 +47,7 @@ export type LoginOptions = {
   persist?: boolean;
 };
 
-export type AccessKeyLoginOptions = {
-  accessKey: string;
-  persist?: boolean;
-};
-
-const FORBIDDEN_CONNECT_KEYS = ["accessKey", "access_key", "token", "bearer"] as const;
+const HOST_IDENTITY_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 export class IdrClient {
   private credential: StoredCredential | null = loadCredential();
@@ -62,6 +59,7 @@ export class IdrClient {
   private relay: ReturnType<typeof createSignalingRelay> | null = null;
   private servicePort: number;
   private authPanelMount: HTMLElement | null = null;
+  private lastPersist = credentialIsPersisted();
 
   private constructor(private readonly service: string) {
     this.servicePort = resolveServicePort(service);
@@ -91,7 +89,7 @@ export class IdrClient {
   async ensureSession(opts: EnsureSessionOptions = {}): Promise<void> {
     if (this.isAuthenticated()) return;
     if (!opts.interactive) {
-      throw new IdrError("auth_required", "Sign in or enter an access key via ensureSession({ interactive: true })");
+      throw new IdrError("auth_required", "Sign in via ensureSession({ interactive: true })");
     }
     const { mountAuthPanel } = await import("./ui/AuthPanel");
     const mount = opts.mount ?? this.authPanelMount;
@@ -109,39 +107,36 @@ export class IdrClient {
   }
 
   async loginAccount(opts: LoginOptions): Promise<void> {
-    const result = await browserLogin(opts.entityId.trim().toLowerCase(), opts.password);
+    const entityId = opts.entityId.trim().toLowerCase();
+    const result = await accountLogin(entityId, opts.password);
     const expiresAt = Date.now() + result.expires_in * 1000;
+    const device = await loadOrCreateDeviceIdentity();
+    const sourceHost = BROWSER_SOURCE_HOST;
+    const registered = await registerSourceIdentity(
+      result.access_token,
+      entityId,
+      sourceHost,
+      device.publicKeyBase64Url(),
+    );
+
+    this.lastPersist = opts.persist ?? false;
     this.credential = {
       mode: "account",
       accessToken: result.access_token,
-      entityId: result.entity_id,
+      entityId,
       expiresAt,
-      sourceHost: BROWSER_SOURCE_HOST,
+      sourceHost,
+      hostIdentity: registered.host_identity,
     };
-    saveCredential(this.credential, opts.persist ?? false);
+    saveCredential(this.credential, this.lastPersist);
     await this.ensureBillingActive();
-  }
-
-  async loginAccessKey(opts: AccessKeyLoginOptions): Promise<void> {
-    const key = opts.accessKey.trim();
-    if (!key) throw new IdrError("invalid_request", "Access key is required");
-    const result = await exchangeAccessKey(key);
-    const expiresAt = Date.now() + result.expires_in * 1000;
-    this.credential = {
-      mode: "access_key",
-      accessToken: result.access_token,
-      entityId: result.entity_id,
-      expiresAt,
-      sourceHost: result.host ?? BROWSER_SOURCE_HOST,
-      keyHint: keyHint(key),
-    };
-    saveCredential(this.credential, opts.persist ?? false);
   }
 
   async logout(): Promise<void> {
     await this.close();
     clearCredential();
     this.credential = null;
+    this.lastPersist = false;
   }
 
   async billingStatus() {
@@ -150,38 +145,35 @@ export class IdrClient {
     return fetchBillingStatus(token);
   }
 
-  async openCheckout(product: "signaling" | "turn", host?: string): Promise<string | undefined> {
+  async openCheckout(bundle: "personal" | "enterprise", quantity = 1): Promise<string | undefined> {
     const token = accessTokenFromCredential(this.credential);
     if (!token) throw new IdrError("auth_required", "Not authenticated");
-    const session = await createCheckout(token, product, host);
+    const session = await createCheckout(token, bundle, quantity);
     return session.checkout_url ?? session.url;
   }
 
   async connect(options: ConnectOptions): Promise<void> {
-    for (const key of FORBIDDEN_CONNECT_KEYS) {
-      if (key in (options as Record<string, unknown>)) {
-        throw new IdrError(
-          "forbidden",
-          `Do not pass ${key} to connect() — use SDK auth UI (ensureSession / mountAuthPanel)`,
-        );
-      }
+    if (!this.isAuthenticated()) {
+      throw new IdrError("auth_required", "Call ensureSession() before connect()");
     }
-
-    const token = accessTokenFromCredential(this.credential);
-    if (!token) throw new IdrError("auth_required", "Call ensureSession() before connect()");
 
     this.state = "connecting";
     try {
       const parsed = parseTargetInput(options.host, this.service);
       this.parsedTarget = parsed;
 
-      const resolved = await resolveTarget(
-        token,
-        parsed.idrtoUri,
-        sourceHostFromCredential(this.credential),
-      );
+      const hostIdentity = await this.ensureHostIdentity();
+      const device = await loadOrCreateDeviceIdentity();
+      const challenge = await fetchResolveChallenge();
+      const popSignature = await device.signNonceBase64Url(challenge.nonce);
 
-      const identity = await loadOrCreateDeviceIdentity();
+      const resolved = await resolveWithHostIdentity(parsed.idrtoUri, hostIdentity, {
+        challenge_id: challenge.challenge_id,
+        nonce: challenge.nonce,
+        pop_signature: popSignature,
+      });
+
+      const identity = device;
       const signalSession = resolved.signal_session;
       let answerResolve: (() => void) | null = null;
       let answerReject: ((err: Error) => void) | null = null;
@@ -284,12 +276,37 @@ export class IdrClient {
     return entityIdFromCredential(this.credential);
   }
 
+  private async ensureHostIdentity(): Promise<HostIdentityDocument> {
+    const cred = this.credential;
+    const token = accessTokenFromCredential(cred);
+    if (!cred || !token) throw new IdrError("auth_required", "Not authenticated");
+
+    const expiresAt = new Date(cred.hostIdentity.expiresAt).getTime();
+    if (expiresAt > Date.now() + HOST_IDENTITY_REFRESH_MS) {
+      return cred.hostIdentity;
+    }
+
+    const device = await loadOrCreateDeviceIdentity();
+    const sourceHost = sourceHostFromCredential(cred);
+    const registered = await registerSourceIdentity(
+      token,
+      cred.entityId,
+      sourceHost,
+      device.publicKeyBase64Url(),
+    );
+
+    cred.hostIdentity = registered.host_identity;
+    this.credential = cred;
+    saveCredential(cred, this.lastPersist);
+    return cred.hostIdentity;
+  }
+
   private async ensureBillingActive(): Promise<void> {
     const status = await this.billingStatus();
-    if (!status.signaling_active) {
+    if (!status.bundle_active) {
       throw new IdrError(
         "billing_required",
-        "Signaling subscription required — use openCheckout('signaling')",
+        "Active product bundle required — use openCheckout('personal')",
       );
     }
   }

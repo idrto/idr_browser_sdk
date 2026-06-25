@@ -1,23 +1,14 @@
 import { CREDENTIAL_STORAGE_KEY } from "../constants";
-import type { IdrAuthMode } from "../types";
+import type { HostIdentityDocument, IdrAuthMode } from "../types";
 
-export type StoredCredential =
-  | {
-      mode: "account";
-      accessToken: string;
-      entityId: string;
-      expiresAt: number;
-      sourceHost: string;
-    }
-  | {
-      mode: "access_key";
-      accessToken: string;
-      entityId: string;
-      expiresAt: number;
-      sourceHost: string;
-      /** Never exposed via public API — internal only */
-      keyHint: string;
-    };
+export type StoredCredential = {
+  mode: "account";
+  accessToken: string;
+  entityId: string;
+  expiresAt: number;
+  sourceHost: string;
+  hostIdentity: HostIdentityDocument;
+};
 
 function storage(persist: boolean): Storage | null {
   if (typeof localStorage === "undefined") return null;
@@ -31,6 +22,10 @@ export function loadCredential(): StoredCredential | null {
     if (!raw) continue;
     try {
       const parsed = JSON.parse(raw) as StoredCredential;
+      if (!parsed.hostIdentity || parsed.mode !== "account") {
+        store.removeItem(CREDENTIAL_STORAGE_KEY);
+        continue;
+      }
       if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
         store.removeItem(CREDENTIAL_STORAGE_KEY);
         continue;
@@ -60,6 +55,11 @@ export function clearCredential(): void {
   }
 }
 
+export function credentialIsPersisted(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(CREDENTIAL_STORAGE_KEY) !== null;
+}
+
 export function authModeFromCredential(cred: StoredCredential | null): IdrAuthMode {
   if (!cred) return "none";
   return cred.mode;
@@ -77,9 +77,6 @@ export function entityIdFromCredential(cred: StoredCredential | null): string | 
   return cred?.entityId ?? null;
 }
 
-/** Access key prefix hint for UI — never the full secret */
-export function keyHint(accessKey: string): string {
-  const trimmed = accessKey.trim();
-  if (trimmed.length <= 8) return "••••";
-  return `${trimmed.slice(0, 7)}…`;
+export function hostIdentityFromCredential(cred: StoredCredential | null): HostIdentityDocument | null {
+  return cred?.hostIdentity ?? null;
 }

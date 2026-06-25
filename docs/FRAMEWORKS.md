@@ -3,7 +3,7 @@
 Same rules in every framework:
 
 - **ISV owns:** host input, connect button, workload UI
-- **SDK owns:** `mountAuthPanel()` or `<idr-auth-panel>` (access keys never in ISV state)
+- **SDK owns:** `mountAuthPanel()` or `<idr-auth-panel>` (credentials never in ISV state)
 
 Runnable demos: [examples/README.md](../examples/README.md)
 
@@ -111,6 +111,5 @@ See [examples/angular-vite](../examples/angular-vite/).
 
 ## Never do this
 
-- `useState` / `v-model` / `[(ngModel)]` for access keys
-- POST keys or idr.to tokens to your backend
-- Pass `accessKey` to `connect()`
+- `useState` / `v-model` / `[(ngModel)]` for idr.to passwords or tokens
+- POST idr.to tokens to your backend

@@ -5,6 +5,7 @@ export { registerAuthPanelElement } from "./ui/IdrAuthPanelElement";
 import "./ui/IdrAuthPanelElement";
 export type {
   ConnectOptions,
+  HostIdentityDocument,
   IdrAuthMode,
   IdrConnectionState,
   IdrFetchInit,

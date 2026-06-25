@@ -2,10 +2,9 @@
 
 ## Owner (runs GPU + agent)
 
-1. Subscribe to idr.to signaling
+1. Purchase an idr.to Personal or Enterprise bundle
 2. Run `idr agent` and Ollama on port 11434
 3. Register host on idr.to
-4. Optionally create access keys for teammates
 
 ## ISV app (hardcoded `ollama`)
 
@@ -16,9 +15,9 @@ await client.connect({ host: userHost });
 await client.fetch("/api/chat", { method: "POST", body: JSON.stringify({ model, messages }) });
 ```
 
-## Delegate with access key
+## Teammate access
 
-Same as above, but auth panel → **Access key** tab. No ISV code changes.
+Teammates sign in with their own idr.to account in the SDK panel. ACL rules on the target entity control who can connect.
 
 ## Protocol
 

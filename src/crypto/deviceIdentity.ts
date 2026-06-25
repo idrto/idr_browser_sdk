@@ -5,6 +5,7 @@ import {
   deriveDeviceIdRaw,
   encodeDeviceIdBase32,
   hexDecode,
+  base64UrlDecode,
 } from "../util/encoding";
 import { DEVICE_KEY_STORAGE_KEY } from "../constants";
 
@@ -14,6 +15,7 @@ export type DeviceIdentity = {
   deviceIdBase32: () => string;
   publicKeyBase64Url: () => string;
   signNonceHex: (nonceHex: string) => Promise<string>;
+  signNonceBase64Url: (nonceBase64Url: string) => Promise<string>;
 };
 
 function loadStoredSeed(): Uint8Array | null {
@@ -59,6 +61,11 @@ export async function loadOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
     publicKeyBase64Url: () => base64UrlEncode(publicKey),
     async signNonceHex(nonceHex: string) {
       const nonce = hexDecode(nonceHex);
+      const sig = await ed.signAsync(nonce, privateKey);
+      return base64UrlEncode(sig);
+    },
+    async signNonceBase64Url(nonceBase64Url: string) {
+      const nonce = base64UrlDecode(nonceBase64Url);
       const sig = await ed.signAsync(nonce, privateKey);
       return base64UrlEncode(sig);
     },
