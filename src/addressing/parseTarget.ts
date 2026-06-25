@@ -39,7 +39,7 @@ export function classifyServiceSegment(seg: string): {
 export function validateHostSuffix(hostOrUrl: string): void {
   const lower = hostOrUrl.toLowerCase();
   const ok = ALLOWED_HOST_SUFFIXES.some((s) => lower.endsWith(s));
-  if (!ok && !hostOrUrl.startsWith("idrto:") && !hostOrUrl.startsWith("https://idr.to/")) {
+  if (!ok && !hostOrUrl.startsWith("idrto:")) {
     throw new IdrError(
       "invalid_host",
       `Target must use suffix ${ALLOWED_HOST_SUFFIXES.join(" or ")} (use .idr synthetic hostnames or idrto: URIs; *.idr.to labels are opaque)`,
@@ -105,16 +105,10 @@ export function parseTargetInput(
     return { ...parsed, path: parsed.path ?? "", query: parsed.query ?? "", idrtoUri: trimmed };
   }
 
-  if (trimmed.startsWith("https://idr.to/")) {
-    const parsed = parseIdrtoUri(trimmed);
-    const idrtoUri = formatIdrtoUri(parsed.entityId, parsed.host, parsed.service);
-    return { ...parsed, path: parsed.path ?? "", query: parsed.query ?? "", idrtoUri };
-  }
-
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     throw new IdrError(
       "invalid_uri",
-      "HTTPS targets must use https://idr.to/... canonical paths, not *.idr.to hostnames",
+      "Use idrto: URIs or *.idr synthetic hostnames — not HTTPS URLs",
     );
   }
 
@@ -147,15 +141,10 @@ function parseIdrtoUri(uri: string): {
   path?: string;
   query?: string;
 } {
-  let pathPart: string;
-  const fromHttps = uri.startsWith("https://idr.to/");
-  if (uri.startsWith("idrto:")) {
-    pathPart = uri.slice("idrto:".length);
-  } else if (fromHttps) {
-    pathPart = uri.slice("https://idr.to/".length);
-  } else {
-    throw new IdrError("invalid_uri", "URI must start with idrto: or https://idr.to/");
+  if (!uri.startsWith("idrto:")) {
+    throw new IdrError("invalid_uri", "URI must start with idrto:");
   }
+  let pathPart = uri.slice("idrto:".length);
 
   const q = pathPart.indexOf("?");
   let query: string | undefined;
@@ -168,7 +157,7 @@ function parseIdrtoUri(uri: string): {
   if (slash < 0) throw new IdrError("invalid_uri", "Missing service-or-port");
   const locator = pathPart.slice(0, slash);
   const remainder = pathPart.slice(slash + 1);
-  const { host, entityId } = parseLocator(locator, fromHttps);
+  const { host, entityId } = parseLocator(locator);
 
   const slash2 = remainder.indexOf("/");
   const serviceOrPort = slash2 < 0 ? remainder : remainder.slice(0, slash2);
@@ -185,14 +174,14 @@ function parseIdrtoUri(uri: string): {
   };
 }
 
-function parseLocator(locator: string, fromHttps: boolean): { host: string; entityId: string } {
+function parseLocator(locator: string): { host: string; entityId: string } {
   const tilde = locator.indexOf("~");
   if (tilde < 0) throw new IdrError("invalid_uri", "Missing ~ between host and entity-id");
   const host = locator.slice(0, tilde);
   const entityPart = locator.slice(tilde + 1);
   if (!host || !entityPart) throw new IdrError("invalid_uri", "Empty host or entity-id");
   validateHostLabels(host);
-  const entityId = fromHttps ? decodeURIComponent(entityPart) : idrUnescapeEntity(entityPart);
+  const entityId = idrUnescapeEntity(entityPart);
   if (!entityId) throw new IdrError("invalid_uri", "Empty entity-id");
   return { host, entityId };
 }
