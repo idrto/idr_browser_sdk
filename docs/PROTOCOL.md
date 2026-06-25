@@ -19,7 +19,13 @@ Multiplexed TCP byte streams over a single WebRTC data channel (`idr-tunnel`).
 | `0x02` CLOSE | `[stream_id u32]` |
 | `0x03` RESET | `[stream_id u32]` |
 
-Browser client sends OPEN to `127.0.0.1:<service_port>` on the target; the agent dials local service.
+Browser client sends OPEN to `127.0.0.1:<service_port>` on the target by default; the agent dials that address on **its** loopback. Use `openStream('::1', port)` when the target service listens on IPv6 loopback only.
+
+## IPv6 notes
+
+- ICE/STUN/TURN use the browser’s dual-stack networking; no IPv4-only restriction in the SDK.
+- TURN URLs with IPv6 literals must be bracketed: `turn:[2001:db8::1]:3478` (configured server-side in `/resolve`).
+- `fetchOverTunnel` uses `127.0.0.1` in the HTTP `Host` header and OPEN frame — correct for typical Ollama/HTTP servers on `127.0.0.1`; override via `openStream` if needed.
 
 ## HTTP `fetch()`
 
