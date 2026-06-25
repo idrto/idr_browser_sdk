@@ -49,12 +49,8 @@ export function encodeDeviceIdBase32(raw: Uint8Array): string {
   return padded.match(/.{1,4}/g)!.join("-");
 }
 
-export function deriveDeviceIdRaw(publicKey: Uint8Array): Uint8Array {
-  return sha256Sync(publicKey).slice(0, DEVICE_ID_LENGTH);
-}
+import { sha256 } from "../crypto/webCrypto";
 
-import { sha256 as sha256Hash } from "@noble/hashes/sha256";
-
-function sha256Sync(data: Uint8Array): Uint8Array {
-  return sha256Hash(data);
+export function deriveDeviceIdRaw(publicKey: Uint8Array): Promise<Uint8Array> {
+  return sha256(publicKey).then((hash) => hash.slice(0, DEVICE_ID_LENGTH));
 }

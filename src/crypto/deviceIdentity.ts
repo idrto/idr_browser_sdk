@@ -1,5 +1,3 @@
-import { sha256 } from "@noble/hashes/sha256";
-import * as ed from "@noble/ed25519";
 import {
   base64UrlEncode,
   deriveDeviceIdRaw,
@@ -8,10 +6,10 @@ import {
   base64UrlDecode,
 } from "../util/encoding";
 import { DEVICE_KEY_STORAGE_KEY } from "../constants";
+import { ed25519KeyPairFromSeed, ed25519Sign } from "./webCrypto";
 
 export type DeviceIdentity = {
   publicKey: Uint8Array;
-  privateKey: Uint8Array;
   deviceIdBase32: () => string;
   publicKeyBase64Url: () => string;
   signNonceHex: (nonceHex: string) => Promise<string>;
@@ -49,27 +47,23 @@ export async function loadOrCreateDeviceIdentity(): Promise<DeviceIdentity> {
     seed = randomSeed();
     storeSeed(seed);
   }
-  const privateKey = seed;
-  const publicKey = await ed.getPublicKeyAsync(privateKey);
-  const deviceIdRaw = deriveDeviceIdRaw(publicKey);
+  const { privateKey, publicKeyRaw } = await ed25519KeyPairFromSeed(seed);
+  const deviceIdRaw = await deriveDeviceIdRaw(publicKeyRaw);
   const deviceIdBase32 = encodeDeviceIdBase32(deviceIdRaw);
 
   return {
-    publicKey,
-    privateKey,
+    publicKey: publicKeyRaw,
     deviceIdBase32: () => deviceIdBase32,
-    publicKeyBase64Url: () => base64UrlEncode(publicKey),
+    publicKeyBase64Url: () => base64UrlEncode(publicKeyRaw),
     async signNonceHex(nonceHex: string) {
       const nonce = hexDecode(nonceHex);
-      const sig = await ed.signAsync(nonce, privateKey);
+      const sig = await ed25519Sign(privateKey, nonce);
       return base64UrlEncode(sig);
     },
     async signNonceBase64Url(nonceBase64Url: string) {
       const nonce = base64UrlDecode(nonceBase64Url);
-      const sig = await ed.signAsync(nonce, privateKey);
+      const sig = await ed25519Sign(privateKey, nonce);
       return base64UrlEncode(sig);
     },
   };
 }
-
-export { sha256 };

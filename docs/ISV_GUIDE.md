@@ -14,7 +14,7 @@ Users run the workload on their hardware — Mac Mini, Linux GPU box, etc. They 
 
 ## Bundle size
 
-~**11 KB gzip** (ESM entry, minified). Auth panel chunk ~1.3 KB gzip when loaded. WebRTC is built into the browser.
+~**8 KB gzip** (ESM entry, minified). Auth panel chunk ~0.8 KB gzip when loaded. Crypto uses browser Web Crypto (Ed25519, SHA-256); WebRTC is built into the browser.
 
 ## What end-users provide
 

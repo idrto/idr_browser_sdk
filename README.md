@@ -10,15 +10,17 @@ Users run workloads on **their own hardware** (Mac Mini, GPU server, etc.) — y
 
 ## Bundle size
 
-Production build (`npm run build`, minified + gzip). WebRTC is browser-native — not counted.
+Production build (`npm run build`, minified + gzip). Uses browser **Web Crypto** (Ed25519, SHA-256) — no crypto dependencies. WebRTC is browser-native — not counted.
 
 | Artifact | Gzip |
 |----------|------|
-| ESM entry (`dist/index.js`) | **~11 KB** |
-| CJS entry (`dist/index.cjs`) | ~13 KB |
-| Auth panel chunk (lazy) | ~1.3 KB |
+| ESM entry (`dist/index.js`) | **~8 KB** |
+| CJS entry (`dist/index.cjs`) | ~8 KB |
+| Auth panel chunk (lazy) | ~0.8 KB |
 
-Typical impact when bundling into an SPA: **~11–12 KB gzip** for core SDK + sign-in UI.
+Typical impact when bundling into an SPA: **~9 KB gzip** for core SDK + sign-in UI.
+
+Requires a browser with **Web Crypto Ed25519** (Chrome 113+, Safari 17.4+, Firefox 130+, Edge 113+).
 
 ## Install
 

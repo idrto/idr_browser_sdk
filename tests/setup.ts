@@ -1,8 +1,13 @@
 import { beforeEach } from "vitest";
+import { webcrypto } from "node:crypto";
 
 const store = new Map<string, string>();
 
 beforeEach(() => {
+  Object.defineProperty(globalThis, "crypto", {
+    configurable: true,
+    value: webcrypto,
+  });
   store.clear();
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
