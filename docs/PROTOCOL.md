@@ -31,4 +31,4 @@ Browser client sends OPEN to `127.0.0.1:<service_port>` on the target by default
 
 The SDK builds HTTP/1.1 on the tunnel stream (raw bytes, not JSON frames).
 
-Reference: [client/docs/TUNNEL.md](https://github.com/idrto/client/blob/main/docs/TUNNEL.md)
+Reference: [client/docs/TUNNEL.md](https://github.com/idrto/idr_agent/blob/main/docs/TUNNEL.md)
