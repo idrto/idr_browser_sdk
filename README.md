@@ -6,7 +6,7 @@ ISVs hardcode **service** at dev time; end-users enter **target host** only. Aut
 
 ## Bring Your Own Machine (BYOM)
 
-Users run workloads on **their own hardware** (Mac Mini, GPU server, etc.) — you do not host inference. They install a target agent + local service (e.g. Ollama on port 11434); your app connects with `IdrClient.forService("ollama")` and the host they provide. Ideal for on-device AI without shipping GPU infrastructure.
+Users run workloads on **their own hardware** (Mac Mini, GPU server, etc.) — you do not host inference. They install a target agent plus a local service (e.g. Ollama); your app connects with `IdrClient.forService("ollama")` and the host they provide. Ideal for on-device AI without shipping GPU infrastructure.
 
 ## Bundle size
 

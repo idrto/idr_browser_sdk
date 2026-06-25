@@ -7,6 +7,8 @@ import {
   parseOpenControl,
   tryDecodeFrame,
 } from "./wire";
+import type { TargetRef } from "../addressing/targetRef";
+import { encodeTargetRefOpen } from "../addressing/targetRef";
 
 export type TunnelStream = {
   streamId: number;
@@ -46,6 +48,25 @@ export class TunnelMultiplexer {
       this.dispatch(decoded.frame.streamId, decoded.frame.payload);
     }
     this.buffer = this.buffer.slice(offset);
+  }
+
+  openTargetRef(target: TargetRef): TunnelStream {
+    const { host, port, transport } = encodeTargetRefOpen(target);
+    const streamId = this.nextStreamId++;
+    const state: StreamState = { dataHandlers: [], closeHandlers: [], closed: false };
+    this.streams.set(streamId, state);
+    this.send(encodeOpen(streamId, host, port, transport));
+
+    return {
+      streamId,
+      write: (data) => {
+        if (state.closed) return;
+        this.send(encodeDataFrame(streamId, data));
+      },
+      close: () => this.closeStream(streamId),
+      onData: (handler) => state.dataHandlers.push(handler),
+      onClose: (handler) => state.closeHandlers.push(handler),
+    };
   }
 
   openStream(host: string, port: number): TunnelStream {

@@ -22,7 +22,8 @@ import {
   sourceHostFromCredential,
   type StoredCredential,
 } from "./platform/credential-store";
-import { resolveServicePort } from "./services/resolvePort";
+import { targetRefFromUriSegment } from "./addressing/targetRef";
+import type { TargetRef } from "./addressing/targetRef";
 import { SignalingClient } from "./signaling/client";
 import { TunnelMultiplexer, type TunnelStream } from "./tunnel/multiplexer";
 import type {
@@ -57,12 +58,14 @@ export class IdrClient {
   private peer: PeerConnectionHandle | null = null;
   private signaling: SignalingClient | null = null;
   private relay: ReturnType<typeof createSignalingRelay> | null = null;
-  private servicePort: number;
+  private targetRef: TargetRef;
   private authPanelMount: HTMLElement | null = null;
   private lastPersist = credentialIsPersisted();
 
   private constructor(private readonly service: string) {
-    this.servicePort = resolveServicePort(service);
+    const ref = targetRefFromUriSegment(service);
+    if (!ref) throw new IdrError("invalid_service", `Invalid service segment: ${service}`);
+    this.targetRef = ref;
   }
 
   static forService(service: string): IdrClient {
@@ -238,11 +241,11 @@ export class IdrClient {
     }
   }
 
-  openStream(host = "127.0.0.1", port = this.servicePort): TunnelStream {
+  openStream(): TunnelStream {
     if (!this.mux || this.state !== "connected") {
       throw new IdrError("not_connected", "Call connect() first");
     }
-    return this.mux.openStream(host, port);
+    return this.mux.openTargetRef(this.targetRef);
   }
 
   async fetch(path: string, init?: IdrFetchInit): Promise<IdrResponse> {
@@ -252,8 +255,8 @@ export class IdrClient {
     const basePath = this.parsedTarget?.path ?? "";
     const fullPath = `${basePath}${path.startsWith("/") ? path : `/${path}`}`;
     const result = await fetchOverTunnel(
-      (h, p) => this.mux!.openStream(h, p),
-      this.servicePort,
+      (t) => this.mux!.openTargetRef(t),
+      this.targetRef,
       fullPath,
       init,
     );

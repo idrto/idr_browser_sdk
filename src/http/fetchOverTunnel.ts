@@ -1,4 +1,5 @@
 import type { TunnelStream } from "../tunnel/multiplexer";
+import type { TargetRef } from "../addressing/targetRef";
 import { IdrError } from "../errors/IdrError";
 import type { IdrFetchInit } from "../types";
 
@@ -68,8 +69,8 @@ export type FetchOverTunnelResult = {
 };
 
 export function fetchOverTunnel(
-  openStream: (host: string, port: number) => TunnelStream,
-  servicePort: number,
+  openTarget: (target: TargetRef) => TunnelStream,
+  target: TargetRef,
   path: string,
   init: IdrFetchInit = {},
 ): Promise<FetchOverTunnelResult> {
@@ -84,12 +85,12 @@ export function fetchOverTunnel(
           ? init.body
           : new Uint8Array(init.body);
 
-  const hostHeader = `127.0.0.1:${servicePort}`;
+  const hostHeader = target.kind === "service" ? target.value : `127.0.0.1`;
   const reqBytes = buildHttpRequest(method, urlPath, hostHeader, init.headers ?? {}, body);
 
   return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
-    const stream = openStream("127.0.0.1", servicePort);
+    const stream = openTarget(target);
 
     const timeoutMs = init.timeoutMs ?? 60_000;
     const timer = setTimeout(() => {

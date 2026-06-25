@@ -19,7 +19,7 @@ export function classifyServiceSegment(seg: string): {
     throw new IdrError("invalid_uri", "Invalid service-or-port segment");
   }
   if (/^[0-9]/.test(seg)) {
-    const m = seg.match(/^(\d{1,5})(UDP)?$/);
+    const m = seg.match(/^(\d{1,5})([Uu][Dd][Pp])?$/);
     if (!m) throw new IdrError("invalid_uri", "Invalid port segment");
     const port = Number(m[1]);
     if (port > 65535) throw new IdrError("invalid_uri", "Port out of range");

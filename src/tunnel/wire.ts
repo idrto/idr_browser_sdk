@@ -8,6 +8,8 @@ export enum ControlOp {
   Reset = 3,
 }
 
+export type WireTransport = "tcp" | "udp";
+
 export type DecodedFrame = {
   streamId: number;
   payload: Uint8Array;
@@ -17,6 +19,7 @@ export type RemoteOpen = {
   streamId: number;
   host: string;
   port: number;
+  transport: WireTransport;
 };
 
 function readU32Be(data: Uint8Array, offset = 0): number {
@@ -44,10 +47,16 @@ export function encodeDataFrame(streamId: number, data: Uint8Array): Uint8Array 
   return frame;
 }
 
-export function encodeOpen(streamId: number, host: string, port: number): Uint8Array {
+export function encodeOpen(
+  streamId: number,
+  host: string,
+  port: number,
+  transport: WireTransport = "tcp",
+): Uint8Array {
   const hostBytes = new TextEncoder().encode(host);
   if (hostBytes.length > 0xffff) throw new Error("tunnel OPEN host too long");
-  const payloadLen = 1 + 4 + 2 + hostBytes.length + 2;
+  const transportByte = transport === "udp" ? 1 : 0;
+  const payloadLen = 1 + 4 + 2 + hostBytes.length + 2 + 1;
   const payload = new Uint8Array(payloadLen);
   let off = 0;
   payload[off++] = ControlOp.Open;
@@ -58,6 +67,8 @@ export function encodeOpen(streamId: number, host: string, port: number): Uint8A
   payload.set(hostBytes, off);
   off += hostBytes.length;
   new DataView(payload.buffer).setUint16(off, port, false);
+  off += 2;
+  payload[off] = transportByte;
   return encodeDataFrame(CONTROL_STREAM_ID, payload);
 }
 
@@ -86,13 +97,15 @@ export function tryDecodeFrame(
 }
 
 export function parseOpenControl(payload: Uint8Array): RemoteOpen | null {
-  if (payload.length < 1 + 4 + 2 + 2 || payload[0] !== ControlOp.Open) return null;
+  if (payload.length < 1 + 4 + 2 + 2 + 1 || payload[0] !== ControlOp.Open) return null;
   const streamId = readU32Be(payload, 1);
   const hostLen = readU16Be(payload, 5);
-  if (payload.length < 7 + hostLen + 2) return null;
+  if (payload.length < 7 + hostLen + 2 + 1) return null;
   const host = new TextDecoder().decode(payload.slice(7, 7 + hostLen));
   const port = readU16Be(payload, 7 + hostLen);
-  return { streamId, host, port };
+  const transportByte = payload[7 + hostLen + 2]!;
+  const transport: WireTransport = transportByte === 1 ? "udp" : "tcp";
+  return { streamId, host, port, transport };
 }
 
 export function parseCloseOrReset(payload: Uint8Array): { op: ControlOp; streamId: number } | null {

@@ -6,7 +6,7 @@
 const client = IdrClient.forService("ollama");
 ```
 
-Service name maps to target port (e.g. `ollama` → 11434). End-users never choose the service.
+`"ollama"` is an application-chosen URI segment. The SDK forwards it opaquely; only the target agent's `[services.ollama]` config resolves the local dial address. End-users never choose the service.
 
 ## BYOM (Bring Your Own Machine)
 

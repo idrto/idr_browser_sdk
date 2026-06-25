@@ -3,7 +3,7 @@
 ## Owner (runs GPU + agent)
 
 1. Purchase an idr.to Personal or Enterprise bundle
-2. Run `idr agent` and Ollama on port 11434
+2. Run `idr agent` with Ollama on the target machine (default local binding `127.0.0.1:11434` via `[services.ollama]`)
 3. Register host on idr.to
 
 ## ISV app (hardcoded `ollama`)
@@ -21,4 +21,4 @@ Teammates sign in with their own idr.to account in the SDK panel. ACL rules on t
 
 ## Protocol
 
-WebRTC `idr-tunnel` + HTTP/1.1 raw bytes to `127.0.0.1:11434` on the target agent.
+WebRTC `idr-tunnel` OPEN with `TargetRef { kind: service, value: ollama }`. The target agent dials the configured Ollama binding and pipes HTTP/1.1 bytes.
