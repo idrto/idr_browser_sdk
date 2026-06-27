@@ -3,6 +3,7 @@ import { parseTargetInput } from "./addressing/parseTarget";
 import { loadOrCreateDeviceIdentity } from "./crypto/deviceIdentity";
 import { IdrError } from "./errors/IdrError";
 import { fetchOverTunnel, IdrResponse } from "./http/fetchOverTunnel";
+import { fetchViaRelay } from "./http/fetchViaRelay";
 import {
   accountLogin,
   createCheckout,
@@ -61,6 +62,7 @@ export class IdrClient {
   private targetRef: TargetRef;
   private authPanelMount: HTMLElement | null = null;
   private lastPersist = credentialIsPersisted();
+  private activeTransport: "webrtc" | "https" | null = null;
 
   private constructor(private readonly service: string) {
     const ref = targetRefFromUriSegment(service);
@@ -160,10 +162,44 @@ export class IdrClient {
       throw new IdrError("auth_required", "Call ensureSession() before connect()");
     }
 
+    const transport = options.transport ?? "auto";
+    if (transport === "https") {
+      await this.connectViaHttpsRelay(options);
+      return;
+    }
+
+    try {
+      await this.connectViaWebRtc(options);
+    } catch (err) {
+      if (transport === "auto" && shouldFallbackToHttps(err)) {
+        await this.close();
+        await this.connectViaHttpsRelay(options);
+        return;
+      }
+      throw err;
+    }
+  }
+
+  private async connectViaHttpsRelay(options: ConnectOptions): Promise<void> {
     this.state = "connecting";
     try {
       const parsed = parseTargetInput(options.host, this.service);
       this.parsedTarget = parsed;
+      this.activeTransport = "https";
+      this.state = "connected";
+    } catch (err) {
+      this.state = "failed";
+      await this.close();
+      throw err;
+    }
+  }
+
+  private async connectViaWebRtc(options: ConnectOptions): Promise<void> {
+    this.state = "connecting";
+    try {
+      const parsed = parseTargetInput(options.host, this.service);
+      this.parsedTarget = parsed;
+      this.activeTransport = "webrtc";
 
       const hostIdentity = await this.ensureHostIdentity();
       const device = await loadOrCreateDeviceIdentity();
@@ -242,6 +278,12 @@ export class IdrClient {
   }
 
   openStream(): TunnelStream {
+    if (this.activeTransport === "https") {
+      throw new IdrError(
+        "not_supported",
+        "openStream() requires WebRTC transport — use fetch() or connect with transport: 'webrtc'",
+      );
+    }
     if (!this.mux || this.state !== "connected") {
       throw new IdrError("not_connected", "Call connect() first");
     }
@@ -249,10 +291,17 @@ export class IdrClient {
   }
 
   async fetch(path: string, init?: IdrFetchInit): Promise<IdrResponse> {
-    if (!this.mux || this.state !== "connected") {
+    if (this.state !== "connected" || !this.parsedTarget) {
       throw new IdrError("not_connected", "Call connect() first");
     }
-    const basePath = this.parsedTarget?.path ?? "";
+    if (this.activeTransport === "https") {
+      const result = await fetchViaRelay(this.parsedTarget, path, init);
+      return new IdrResponse(result.status, result.headers, result.body);
+    }
+    if (!this.mux) {
+      throw new IdrError("not_connected", "Call connect() first");
+    }
+    const basePath = this.parsedTarget.path ?? "";
     const fullPath = `${basePath}${path.startsWith("/") ? path : `/${path}`}`;
     const result = await fetchOverTunnel(
       (t) => this.mux!.openTargetRef(t),
@@ -271,6 +320,7 @@ export class IdrClient {
     this.mux = null;
     this.relay = null;
     this.parsedTarget = null;
+    this.activeTransport = null;
     this.state = "idle";
   }
 
@@ -312,5 +362,21 @@ export class IdrClient {
         "Active product bundle required — use openCheckout('personal')",
       );
     }
+  }
+}
+
+function shouldFallbackToHttps(err: unknown): boolean {
+  if (!(err instanceof IdrError)) return true;
+  switch (err.code) {
+    case "auth_required":
+    case "forbidden":
+    case "billing_required":
+    case "invalid_uri":
+    case "invalid_host":
+    case "invalid_service":
+    case "aborted":
+      return false;
+    default:
+      return true;
   }
 }

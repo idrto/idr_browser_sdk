@@ -5,6 +5,7 @@ export { registerAuthPanelElement } from "./ui/IdrAuthPanelElement";
 import "./ui/IdrAuthPanelElement";
 export type {
   ConnectOptions,
+  ConnectTransport,
   HostIdentityDocument,
   IdrAuthMode,
   IdrConnectionState,
@@ -19,3 +20,4 @@ export {
   ALLOWED_HOST_SUFFIXES,
 } from "./constants";
 export { buildIdrHostname, formatIdrtoUri } from "./addressing/parseTarget";
+export { defHostnameForLocator, buildRelayHttpsUrl } from "./addressing/def";

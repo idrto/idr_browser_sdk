@@ -40,6 +40,8 @@ export type ResolveResponse = {
   transport?: "tcp" | "udp";
   signal_session: string;
   signal_url?: string;
+  def_hostname?: string;
+  https_url?: string;
   stun_urls?: string[];
   turn_urls?: string[];
   turn_username?: string;
@@ -61,8 +63,12 @@ export type IdrFetchInit = {
   timeoutMs?: number;
 };
 
+export type ConnectTransport = "auto" | "webrtc" | "https";
+
 export type ConnectOptions = {
   host: string;
+  /** WebRTC first with HTTPS relay fallback (default), WebRTC only, or HTTPS relay only */
+  transport?: ConnectTransport;
   signal?: AbortSignal;
   timeoutMs?: number;
 };

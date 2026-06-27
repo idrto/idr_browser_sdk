@@ -2,6 +2,7 @@
 
 export const IDR_API_BASE = "https://idr.to";
 export const IDR_SIGNAL_URL = "wss://idr.to/v1/signal";
+export const IDR_RELAY_BASE_DOMAIN = "idr.to";
 export const IDR_WELL_KNOWN = "https://idr.to/.well-known/idr-configuration";
 export const ALLOWED_HOST_SUFFIXES = [".idr.to", ".idr"] as const;
 export const BROWSER_SOURCE_HOST = "browser";

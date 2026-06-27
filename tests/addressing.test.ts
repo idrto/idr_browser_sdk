@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defHostnameForLocator } from "../src/addressing/def";
 import {
   buildIdrHostname,
   classifyServiceSegment,
@@ -8,6 +9,11 @@ import {
 } from "../src/addressing/parseTarget";
 
 describe("addressing", () => {
+  it("builds DEF relay hostname", () => {
+    const host = defHostnameForLocator("user@example.com", "laptop");
+    expect(host.endsWith(".idr.to")).toBe(true);
+    expect(host).toContain("laptop");
+  });
   it("formats idrto host~entity URI", () => {
     const uri = formatIdrtoUri("user@example.com", "edge-gpu-1", "ollama");
     expect(uri).toBe("idrto:edge-gpu-1~user-40example.com/ollama");
